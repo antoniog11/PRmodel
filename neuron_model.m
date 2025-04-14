@@ -1,12 +1,13 @@
 function sol = neuron_model(t_dur, g_c, I_soma, I_dend, stim_start, stim_end)
     % Parameters from Yi et al., 2017
-    C = 2.0;  % membrane capacitance [uF/cm^2]
+    C = 3;  % membrane capacitance [uF/cm^2]
     p = 0.5;
     % Maximal conductances [mS/cm^2]
     g_Na = 20;
-    g_K  = 20;
-    g_Ca = 40;
-    g_L  = 2;
+    g_K  = 50;
+    g_Ca = 0;
+    g_L_s  = 2;
+    g_L_d = 2;
 
     % Reversal potentials [mV]
     E_Na = 50;
@@ -21,11 +22,12 @@ function sol = neuron_model(t_dur, g_c, I_soma, I_dend, stim_start, stim_end)
     beta_m = -12;
     gamma_m = 18;
 
-    tau_n = 15;
-    tau_h = 80;
+    n_zw = 1;
+    tau_n = 15/n_zw;
+    tau_h = 80/n_zw;
 
     % Initial conditions: [Vs, w, Vd, n, h]
-    Y0 = [-65; 0.01; -65; 0.01; 0.001];
+    Y0 = [-65; 0.01; -65; 0.01; 1];
     tspan = [0, t_dur];
     opts = odeset('MaxStep', 0.01);
 
@@ -39,7 +41,6 @@ function sol = neuron_model(t_dur, g_c, I_soma, I_dend, stim_start, stim_end)
         Vd = Y(3);
         n  = Y(4);
         h  = Y(5);
-
         % Activation functions
         m_inf = 0.5 * (1 + tanh((Vs - beta_m) / gamma_m));
         w_inf = 0.5 * (1 + tanh((Vs - beta_w) / gamma_w));
@@ -51,10 +52,10 @@ function sol = neuron_model(t_dur, g_c, I_soma, I_dend, stim_start, stim_end)
         % Currents
         I_Na = g_Na * m_inf * (Vs - E_Na);
         I_K  = g_K  * w      * (Vs - E_K);
-        I_Ls = g_L * (Vs - E_L);
+        I_Ls = g_L_s * (Vs - E_L);
 
         I_Ca = g_Ca * n * h * (Vd - E_Ca);
-        I_Ld = g_L * (Vd - E_L);
+        I_Ld = g_L_d * (Vd - E_L);
 
         I_ds = g_c * (Vd - Vs);
 
@@ -66,10 +67,10 @@ function sol = neuron_model(t_dur, g_c, I_soma, I_dend, stim_start, stim_end)
         end
 
         % ODEs
-        dVs = (1/C) * (-I_Na - I_K - I_Ls + I_ds+ Is);
+        dVs = (1/C) * (-I_Na - I_K - I_Ls + I_ds/p+ Is/p);
         dw  = phi_w * (w_inf - w) / tau_w;
 
-        dVd = (1/C) * (-I_Ca - I_Ld - I_ds + Id);
+        dVd = (1/C) * (-I_Ca - I_Ld - I_ds/(1-p) + Id/(1-p));
         dn  = (n_inf - n) / tau_n;
         dh  = (h_inf - h) / tau_h;
 
